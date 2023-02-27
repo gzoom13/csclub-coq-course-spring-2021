@@ -533,4 +533,18 @@ Definition eq_trans A (x y z : A) :
     | eq_refl => fun (pf_xz : x = z) => pf_xz
     end.
 
+Print eq_trans.
+
+Definition eq_trans2 A (x y z : A) :
+  x = y -> y = z -> x = z
+:=
+  fun (pf_xy : x = y) (pf_xz : y = z) =>
+    match
+      pf_xy, pf_xz
+    with
+    | eq_refl, eq_refl => eq_refl
+    end.
+
+Print eq_trans2.
+
 End MyNamespace.

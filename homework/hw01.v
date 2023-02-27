@@ -20,11 +20,12 @@ Definition negb :=
 (*| 1a. Define `orb` function implementing boolean disjunction and test it
 _thoroughly_ using the command `Compute`. |*)
 
-Definition orb (b c : bool) : bool := ...
+Definition orb (b c : bool) : bool := if b is true then true else c.
 
-Compute orb ...
-...
-Compute orb ...
+Compute orb true true.
+Compute orb false false.
+Compute orb true false.
+Compute orb false true.
 
 (*| 1b. Define `addb` function implementing _exclusive_ boolean disjunction.
 Try to come up with more than one definition (try to make it interesting
@@ -112,5 +113,30 @@ class: extra exercises do not influence your grade negatively if you skip them.
 
 (*| Ea: implement division (`divn`) on natural numbers and write some unit tests
 for it. |*)
+
+(* n = q * m + r *)
+(* n = 0 * m + r *)
+Fixpoint divn_my_rec (m q r: nat) {struct r}: nat :=
+  match (r - m) with
+  | O => q
+  | S r' => divn_my_rec m (S q) r'
+  end.
+
+Fixpoint divn (n m : nat) : nat :=
+  if m is S m' then divn_my_rec m' 0 n else O.
+
+
+(* Unit tests: *)
+Compute divn_my 0 0.  (* = 0 *)
+Compute divn_my 1 0.  (* = 0 *)
+Compute divn_my 0 3.  (* = 0 *)
+Compute divn_my 1 3.  (* = 0 *)
+Compute divn_my 2 3.  (* = 0 *)
+Compute divn_my 3 3.  (* = 1 *)
+Compute divn_my 8 3.  (* = 2 *)
+Compute divn_my 42 1. (* = 42 *)
+Compute divn_my 42 2. (* = 21 *)
+Compute divn_my 42 3. (* = 14 *)
+Compute divn_my 42 4. (* = 10 *)
 
 End My.

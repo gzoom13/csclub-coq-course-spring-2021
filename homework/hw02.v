@@ -18,8 +18,8 @@ multiplications *)
 Inductive expr : Type :=
 | Const of nat
 | Plus of expr & expr
-| Minus of ...
-| Mult of ...
+| Minus of expr  & expr
+| Mult of expr & expr
 .
 
 (** Let us define a special notation for our language.
@@ -45,8 +45,8 @@ Notation "x + y" := (Plus x y) (in custom expr at level 2, left associativity).
 (* Define notations for subtraction and multiplication.
    Hint: lower level means higher priority.
    Your notations should start with `in custom expr` as above. *)
-Notation "x - y" := ...
-Notation "x * y" := ...
+Notation "x - y" := (Minus x y) (in custom expr at level 2, left associativity).
+Notation "x * y" := (Mult x y) (in custom expr at level 1, left associativity).
 
 (** Here is how we write Plus (Const 0) (Plus (Const 1) (Const 2)) *)
 Check [[
@@ -59,6 +59,7 @@ Check [[
 
 (* Make sure the following are parsed as expected.
    What query can you use to do that? *)
+Unset Printing Notations.
 Check [[
           ((0 + 1) + 2) + 3
       ]].
@@ -71,23 +72,33 @@ Check [[
 Check [[
           0 + 1 * 2
       ]].
+Set Printing Notations.
 
 (** Write an evaluator for the expression language which fixes its semantics.
 Basically, the semantics of the expression language should be the same as
 the corresponding Coq functions `addn`, `subn`, `muln`. *)
 Fixpoint eval (e : expr) : nat :=
-  ...
+  match e with
+  | Const c => c
+  | Plus a b => (eval a) + (eval b)
+  | Minus a b => (eval a) - (eval b)
+  | Mult a b => (eval a) * (eval b)
+  end.
 
 (** Some unit tests *)
 (** We haven't discussed in depth what `erefl` means yet.
     But for now, let's just assume if the following lines
     typecheck then the equalities below hold *)
+Check erefl : eval [[ 0 ]] = 0.
+Check erefl : eval [[ 1 ]] = 1.
+Check erefl : eval [[ 1 + 2 ]] = 3.
+Check erefl : eval [[ 2 - 1 ]] = 1.
 Check erefl : eval [[ 0 - 4 ]] = 0.
 Check erefl : eval [[ 0 + (2 - 1) ]] = 1.
 Check erefl : eval [[ (0 + 1) + 2 ]] = 3.
 Check erefl : eval [[ 2 + 2 * 2 ]] = 6.
 Check erefl : eval [[ (2 + 2) * 2 ]] = 8.
-...
+
 
 
 (** * Compiling arithmetic expressions to a stack language *)
@@ -113,6 +124,12 @@ Notation " << n >> " := (Push n) (at level 0, n constr).
 *)
 
 
+Notation " << n >> " := (Push n) (at level 0, n constr).
+Notation " +++ " := (Add) (at level 0).
+Notation " --- " := (Sub) (at level 0).
+Notation " *** " := (Mul) (at level 0).
+
+
 (* Feel free to either define your own datatype to represent lists or reuse the
 `seq` datatype provided by Mathcomp (this is why this file imports the `seq`
 module at the beginning). Btw, `seq` is just a notation for the standard `list`
@@ -136,27 +153,68 @@ And the type of stacks like so:
     Definition stack := seq nat.
 *)
 
+Definition prog := seq instr.
+Definition stack := seq nat.
+
+Check [:: << 3 >>; << 4 >>; +++] : prog.
 
 (** The [run] function is an interpreter for the stack language. It takes a
  program (list of instructions) and the current stack, and processes the program
  instruction-by-instruction, returning the final stack. *)
-Fixpoint run (p : prog) (s : stack) : stack :=
-  ...
+Fixpoint run (p : prog) (s : stack) {struct p}: stack :=
+  let op f := if s is a :: b :: xs then (f b a) :: xs else s
+  in
+  match p with
+  | nil => s
+  | Push n :: p' => run p' (n :: s)
+  | Add :: p' => run p' (op addn)
+  | Sub :: p' => run p' (op subn)
+  | Mul :: p' => run p' (op muln)
+  end.
 
 (** Unit tests: *)
 Check erefl :
-  run [:: ... stack-program ...] [::] = [:: ... stack-of-numbers ...].
-...
+  run [:: << 3 >>; << 4 >>; +++] [::] = [:: 7].
+Check erefl :
+  run [:: << 3 >>; << 4 >>; ***] [:: 15] = [:: 12; 15].
+Check erefl :
+  run [:: ***] [:: ] = [:: ].
+Compute run [:: << 4 >>; << 2 >>; ---] [:: 15] .
+Check erefl :
+  run [:: << 4 >>; << 2 >>; ---] [:: 15] = [:: 2; 15].
 
 
 (** Now, implement a compiler from "high-level" expressions to "low-level" stack
 programs and do some unit tests. *)
 Fixpoint compile (e : expr) : prog :=
-  ...
+  match e with
+  | Const c => [:: << c >>]
+  | Plus a b => (compile a) ++ (compile b) ++ [:: +++]
+  | Minus a b => (compile a) ++ (compile b) ++ [:: ---]
+  | Mult a b => (compile a) ++ (compile b) ++ [:: ***]
+  end.
 
 (** Do some unit tests *)
+
+
 Check erefl :
-  compile [[ ... expression ... ]] = [:: ... stack-program ].
+  compile [[ (2 + 2) * 2 ]] = [:: << 2 >>; << 2 >>; +++; << 2 >>; *** ].
+
+Check erefl :
+  compile [[ 2 + 2 * 2 ]]  = [:: << 2 >>; << 2 >>; << 2 >>; ***; +++ ].
+Check erefl :
+  compile [[ 4 - 2 ]] = [:: << 4 >>; << 2 >>; --- ].
+Check erefl :
+  run (compile [[ 4 - 2 ]]) [::] = [:: 2].
+
+
+
+Variables a b c : nat.
+Variables e1 e2 : expr.
+Check erefl : run (compile (Const c)) [::] = [:: eval (Const c)].
+Fail Check erefl : run (compile (Plus (Const a) (e2))) [::] = [:: eval (Plus (Const a) (e2))].
+
+
 ...
 (* Some ideas for unit tests:
   - check that `run (compile e) [::] = [:: eval e]`, where `e` is an arbitrary expression;
