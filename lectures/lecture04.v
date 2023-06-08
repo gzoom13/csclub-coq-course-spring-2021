@@ -42,6 +42,26 @@ Definition succ_inj (n m : nat) :
     | erefl => erefl n
     end.
 
+Fail Compute succ_inj (erefl 0).
+
+Print eq_refl.
+
+Definition succ_inj2 (n m : nat) :
+  n.+1 = m.+1 -> n = m
+:=
+  fun Sn_Sm : n.+1 = m.+1 =>
+    match
+      Sn_Sm in (_ = S m)
+      return (n = m)
+    with
+    | erefl => erefl _
+    end.
+
+Print succ_inj2.
+
+Locate ":>".
+Print eq.
+
 (*| Since we can only substitute `n.+1` with
 `m.+1`, or, with notations unfolded, `S n` with `S
 m`, we need to somehow remove the `S` constructor
@@ -304,7 +324,7 @@ two subgoals:
 - we construct a term of type `P 0`, i.e. we prove
   our property `P` holds for the base case when
   `n` is equal to zero;
-- we construct a term of type
+- we constructr a term of type
   `forall n : nat, P n -> P n.+1`, i.e. we do
   the inductive step and prove the property `P` holds
   for any successor `n.+1` under the assumption it
